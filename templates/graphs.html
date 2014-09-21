@@ -5,10 +5,10 @@
 <style>
 
 body {
-  font: 10px sans-serif;
+  font: 11px/1.0 "Helvetica Neue",Helvetica,Arial,sans-serif;
 }
 
-h2 {
+h1, h2, h3 {
     margin: 0;
     color: #666;
 }
@@ -18,40 +18,24 @@ div#content {
     margin: auto;
 }
 
-.axis path,
-.axis line {
-  fill: none;
-  stroke: #ccc;
-  shape-rendering: crispEdges;
-}
-
-.x.axis path {
-  display: none;
-}
-
+/* data line */
 .line {
   fill: none;
   stroke: #000;
   stroke-width: 1.5px;
 }
 
-path.domain {
-    background-color: red;
-}
-
-/*
-
 .axis path,
 .axis line {
   fill: none;
-  stroke: #ccc;
   shape-rendering: crispEdges;
+  stroke-width: 1px;
 }
 
-.domain {
-    display: none;
+.axis line {
+  stroke-width: 1px;
+  stroke: #ccc;
 }
-*/
 
 .axis {
   shape-rendering: crispEdges;
@@ -59,8 +43,27 @@ path.domain {
   color: #ccc;
 }
 
-.x.axis .minor {
-  stroke-opacity: .5;
+/* hide y axis path */
+.y.axis path {
+  stroke: none;
+}
+
+.x.axis path {
+  stroke-width: 0.5px;
+  stroke: #ccc;
+}
+
+.y.axis.top line {
+  stroke: #eee;
+  stroke-width: 0px;
+}
+
+.axis text {
+    fill: #999;
+}
+
+.now {
+    font-family: HelveticaNeue-CondensedBold, 'Helvetica Neue', 'Arial Narrow', Arial, sans-serif;
 }
 
 span.number {
@@ -68,6 +71,7 @@ span.number {
     font-size: 52px;
     font-weight: bold;
     margin: 0;
+    padding: 0;
 }
 
 div#graphs {
@@ -86,24 +90,32 @@ div.graph div.graph
     vertical-align: top;
 }
 
-#tabs ul {
-    list-style: none;
-    padding:0;
-    margin:0;
-    border-bottom: 1px solid #000;
-    margin-bottom: 0.5em;
+.tabs {
+    border-bottom: 1px solid #e8e8e8;
+    margin: 1.5em 0 2em;
 }
 
-#tabs li {
-    display: inline;
-    border: solid;
-    border-width: 1px 1px 0 1px;
-    margin: 0 0.5em 0 0;
-    padding:3px;
+.tabs .tab {
+    display: inline-block;
+    padding: 5px;
+    margin: 0 0 -1px;
 }
 
-#header li a {
-    padding: 0 1em;
+.tabs .tab a {
+    color: #999;
+    display: block;
+    padding: 6px 10px 6px;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.tabs .tab.selected {
+    border: 1px solid #e8e8e8;
+    border-bottom: none;
+}
+
+.tabs .tab.selected a {
+    color: #000;
 }
 
 </style>
@@ -112,16 +124,15 @@ div.graph div.graph
 
 <div id="content">
 
-<h1>{{ url }}</h1>
+<h1><a href="{{ url }}">{{ url }}</a></h1>
 
-<!--div id="tabs">
-<ul>
-    <li>today
-    <li>this week
-    <li>this month
-</ul>
-</div-->
-<h3>{{ current_date }}</h3>
+<p class="now"><b>{{ current_date }}</b>
+
+<div class="tabs">
+    <div class="tab selected"><a href="#past_day">Past Day</a></div>
+    <div class="tab "><a href="#past_week">Past Week</a></div>
+    <div class="tab "><a href="#past_month">Past Month</a></div>
+</div>
 
 <div id="graphs">
 
@@ -136,10 +147,21 @@ div.graph div.graph
     </div>
 </div>
 
-<div id="meanresptime" class="graph">
+<div id="resptime_mean" class="graph">
     <div class="data">
         <h2>Mean Response Time</h2>
-        <span class="number" title="Updated about 44 seconds ago">{{ resptime_mean }}ms</span>
+        <span class="number" title="Updated about 44 seconds ago">{{ "%.0f"|format(resptime_mean) }}ms</span>
+    </div>
+    <div class="graph">
+        <div class="graph-container" data-string="{{ resptime }}" data-unit="ms">
+        </div>
+    </div>
+</div>
+
+<div id="resptime_p98" class="graph">
+    <div class="data">
+        <h2>98th Perc. Response Time</h2>
+        <span class="number" title="Updated about 44 seconds ago">{{ "%.0f"|format(resptime_p98) }}ms</span>
     </div>
     <div class="graph">
         <div class="graph-container" data-string="{{ resptime }}" data-unit="ms">
@@ -150,7 +172,7 @@ div.graph div.graph
 <div id="exceptpct" class="graph">
     <div class="data">
         <h2>Exception Percentage</h2>
-        <span class="number" title="Updated about 44 seconds ago">{{ "%.4f"|format(except_pct) }}%</span>
+        <span class="number" title="Updated about 44 seconds ago">{{ except_pct }}%</span>
     </div>
     <div class="graph">
         <div class="graph-container" data-string="{{ except_ }}" data-unit="%">
@@ -163,102 +185,168 @@ div.graph div.graph
 </div>
 
 <script src="http://d3js.org/d3.v3.js"></script>
+<!--script src="//d3js.org/d3.v2.min.js?2.10.0"></script-->
 <script>
 
-function graph(graphid, yDomain)
+function percentile(data, accessor, nth_percentiles)
 {
-
-  var base = document.getElementById(graphid);
-  var graphContainer = base.getElementsByClassName('graph-container');
-  var dataString = graphContainer[0].getAttribute('data-string');
-  var unitString = graphContainer[0].getAttribute('data-unit');
-
-  var raw = JSON.parse(dataString);
-  data = []
-  for (var i = 0; i < raw.length; i++)
-  {
-    data.push({
-        'date': new Date(raw[i][0] * 1000),
-        'close': +raw[i][1]
-    });
-  }
-
-var margin = {top: 10, right: 10, bottom: 20, left: 30},
-    width = 377 - margin.left - margin.right,
-    height = 90 - margin.top - margin.bottom;
-
-var x = d3.time.scale()
-    .range([0, width]);
-
-var y = d3.scale.linear()
-    .range([height, 0])
-    ;
-
-var xAxis = d3.svg.axis()
-    .scale(x)
-    .orient("bottom")
-    .ticks(d3.time.minutes, 30)
-    .tickFormat(function(d) { return (d3.time.format('%I:%M')(new Date(d))).replace(/^0/,''); })
-    ;
-
-var ticks = [
-    //d3.min (data, function(d){ return +d.close; }),
-    d3.mean(data, function(d){ return +d.close; }),
-    d3.max (data, function(d){ return +d.close; })
-];
-
-var yAxis = d3.svg.axis()
-    .scale(y)
-    .orient("left")
-    .tickValues(ticks)
-    .tickSize(-width)
-    .tickSubdivide(true)
-    .tickFormat(d3.format(',.0fms'))
-    ;
-
-var line = d3.svg.line()
-    .x(function(d) { return x(d.date); })
-    .y(function(d) { return y(d.close); });
-
-var svg = d3.select(graphContainer[0]).append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-  .append("g")
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-  x.domain(d3.extent(data, function(d) { return d.date; }));
-  if (yDomain) {
-    y.domain(yDomain);
-  } else {
-    y.domain(d3.extent(data, function(d) { return d.close; }));
-  }
-
-  svg.append("g")
-      .attr("class", "x axis")
-      .attr("transform", "translate(0," + height + ")")
-      .call(xAxis);
-
-  svg.append("g")
-      .attr("class", "y axis")
-      .call(yAxis)
-    /*
-    .append("text")
-      .attr("transform", "rotate(-90)")
-      .attr("y", 6)
-      .attr("dy", ".71em")
-      .style("text-anchor", "end")
-      //.text("Price ($)");
-    */
-     ;
-
-  svg.append("path")
-      .datum(data)
-      .attr("class", "line")
-      .attr("d", line);
+    nth_percentiles = nth_percentiles || [5, 95];
+    accessor = accessor || function(x){ return x; };
+    var ll = data.length;
+    if (ll == 0)
+    {
+        return null;
+    }
+    var listcopy = data.slice().sort(function (x,y) { return accessor(x) - accessor(y); });
+    return nth_percentiles.map(function(npi) {
+        npi = Math.max(0, Math.min(100, npi)); // enforce bounds
+        return listcopy[Math.round(ll * (npi / 100.))];
+        });
 }
 
-graph('meanresptime');
+function graph(graphid, yDomain, tickConfig)
+{
+
+    var base = document.getElementById(graphid);
+    var graphContainer = base.getElementsByClassName('graph-container');
+    var dataString = graphContainer[0].getAttribute('data-string');
+    var unitString = graphContainer[0].getAttribute('data-unit');
+
+    var raw = JSON.parse(dataString);
+    data = []
+    for (var i = 0; i < raw.length; i++)
+    {
+        data.push({
+            'date': new Date(raw[i][0] * 1000),
+            'close': +raw[i][1]
+        });
+    }
+
+    var margin = {top: 10, right: 10, bottom: 20, left: 30},
+        width = 377 - margin.left - margin.right,
+        height = 90 - margin.top - margin.bottom;
+
+    var x = d3.time.scale()
+        .range([0, width]);
+
+    var y = d3.scale.linear()
+        .range([height, 0])
+        ;
+
+    var xAxisMajor = d3.svg.axis()
+        .scale(x)
+        .orient("bottom")
+        .innerTickSize(3)
+        .outerTickSize(3)
+        .ticks(d3.time.hours, 3)
+        .tickFormat(function(d) { return (d3.time.format('%I:%M')(new Date(d))).replace(/^0/,''); })
+        ;
+
+    var xAxisMinor = d3.svg.axis()
+        .scale(x)
+        .orient("bottom")
+        .innerTickSize(3)
+        .outerTickSize(3)
+        .ticks(d3.time.hours, 1)
+        .tickFormat('')
+        ;
+
+    var close = function(d){ return d.close };
+    tickConfig = tickConfig || {'mean':1};
+    if ('percentile' in tickConfig) {
+        var ticks = percentile(data, close, tickConfig.percentile).map(close);
+    } else {
+        var ticks = [
+            Math.round(d3.mean(data, close))
+        ];
+    }
+    var extent = d3.extent(data.map(close));
+    var range = extent[1] - extent[0];
+    if (range > 0) {
+        // 579 + 100 - (579 % 100)
+        var scale = Math.round(Math.pow(10, ~~(Math.log(range) / Math.log(10))));
+        var tickHi = ticks[0] + (scale - (ticks[0] % scale));;
+        var tickLo = ticks[0] - (ticks[0] % scale);
+        var ticks = [tickHi];
+        if (tickLo >= d3.min(data.map(close)))
+        {
+            ticks.push(tickLo);
+        }
+    }
+
+    var yAxis = d3.svg.axis()
+        .scale(y)
+        .orient("left")
+        .tickValues(ticks)
+        .tickSize(-width)
+        .tickFormat(d3.format(',.0f'))
+        ;
+
+    var yAxisTop = d3.svg.axis()
+        .scale(y)
+        .orient("left")
+        .tickValues([d3.max(data, close)])
+        .tickSize(-width)
+        .tickFormat(d3.format(',.0f'))
+        ;
+
+    var line = d3.svg.line()
+        .interpolate("basis") // line smoothing
+        .x(function(d) { return x(d.date); })
+        .y(function(d) { return y(d.close); });
+
+    var svg = d3.select(graphContainer[0]).append("svg")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    x.domain(d3.extent(data, function(d) { return d.date; }));
+    if (yDomain) {
+        y.domain(yDomain);
+    } else {
+        y.domain(d3.extent(data, function(d) { return d.close; }));
+    }
+
+    svg.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate(0," + height + ")")
+        .call(xAxisMajor);
+
+    svg.append("g")
+        .attr("class", "x axis minor")
+        .attr("transform", "translate(0," + height + ")")
+        .call(xAxisMinor);
+
+    svg.append("g")
+        .attr("class", "y axis")
+        .call(yAxis)
+        /*
+        .append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", 0)
+        .attr("dy", ".71em")
+        .style("text-anchor", "end")
+        .text(unitString || '');
+        */
+        ;
+
+        /*
+    svg.append("g")
+        .attr("class", "y axis top")
+        .call(yAxisTop)
+        ;
+        */
+
+    svg.append("path")
+        .datum(data)
+        .attr("class", "line")
+        .attr("d", line);
+}
+
 graph('availability', [0,100]);
+graph('resptime_mean');
+graph('resptime_p98', null, {'percentile':[98]});
 graph('exceptpct', [0,100]);
 
 </script>

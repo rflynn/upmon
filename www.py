@@ -25,13 +25,19 @@ def format_pct(pct):
         return int(pct)
     return round(pct, 4)
 
+def percentile(l, nth, key=lambda x: x):
+    if not l:
+        return None
+    assert nth >= 0 and nth <= 100
+    return sorted(l, key=key)[int(round((len(l) * (nth / 100.))))]
+
 @app.route('/')
 def graph():
 
-    now = datetime.utcnow()
-    one_week_ago = now - timedelta(days=7)
+    now = datetime.now()
+    six_hours_ago = now - timedelta(days=1)
 
-    time_start = int(one_week_ago.strftime('%s'))
+    time_start = int(six_hours_ago.strftime('%s'))
     time_end = int(now.strftime('%s')) + 1
     url_id = 1
 
@@ -78,6 +84,8 @@ order by result.id asc
                         for t, dur, http_code in rows]
     resptime_mean = float(sum(dur for _, dur in resptime)) / len(resptime)
 
+    resptime_p98 = percentile(resptime, 98, key=lambda x: x[1])[1]
+
     except_ = [[t, int(http_code is None) * 100]
                         for t, dur, http_code in rows]
     except_pct = sum(x for _, x in except_) / len(except_)
@@ -89,9 +97,10 @@ order by result.id asc
                            current_date=current_date,
                            availability_pct=format_pct(availability_pct),
                            availability=availability,
-                           resptime_mean=round(resptime_mean, 1),
+                           resptime_mean=resptime_mean,
                            resptime=resptime,
-                           except_pct=round(except_pct, 4),
+                           resptime_p98=resptime_p98,
+                           except_pct=format_pct(except_pct),
                            except_=except_)
 
 if __name__ == '__main__':
