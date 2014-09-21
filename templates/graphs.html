@@ -1,0 +1,267 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+
+body {
+  font: 10px sans-serif;
+}
+
+h2 {
+    margin: 0;
+    color: #666;
+}
+
+div#content {
+    width: 600px;
+    margin: auto;
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #ccc;
+  shape-rendering: crispEdges;
+}
+
+.x.axis path {
+  display: none;
+}
+
+.line {
+  fill: none;
+  stroke: #000;
+  stroke-width: 1.5px;
+}
+
+path.domain {
+    background-color: red;
+}
+
+/*
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #ccc;
+  shape-rendering: crispEdges;
+}
+
+.domain {
+    display: none;
+}
+*/
+
+.axis {
+  shape-rendering: crispEdges;
+  font-size: 9px;
+  color: #ccc;
+}
+
+.x.axis .minor {
+  stroke-opacity: .5;
+}
+
+span.number {
+    font-family: HelveticaNeue-CondensedBold, 'Helvetica Neue', 'Arial Narrow', Arial, sans-serif;
+    font-size: 52px;
+    font-weight: bold;
+    margin: 0;
+}
+
+div#graphs {
+    display: table;
+}
+
+div#graphs div.graph {
+    display: table-row;
+    vertical-align: baseline;
+}
+
+div.graph div.data,
+div.graph div.graph
+ {
+    display: table-cell;
+    vertical-align: top;
+}
+
+#tabs ul {
+    list-style: none;
+    padding:0;
+    margin:0;
+    border-bottom: 1px solid #000;
+    margin-bottom: 0.5em;
+}
+
+#tabs li {
+    display: inline;
+    border: solid;
+    border-width: 1px 1px 0 1px;
+    margin: 0 0.5em 0 0;
+    padding:3px;
+}
+
+#header li a {
+    padding: 0 1em;
+}
+
+</style>
+</head>
+<body>
+
+<div id="content">
+
+<h1>{{ url }}</h1>
+
+<!--div id="tabs">
+<ul>
+    <li>today
+    <li>this week
+    <li>this month
+</ul>
+</div-->
+<h3>{{ current_date }}</h3>
+
+<div id="graphs">
+
+<div id="availability" class="graph">
+    <div class="data">
+        <h2>Availability</h2>
+        <span class="number" title="Updated about 44 seconds ago">{{ availability_pct }}%</span>
+    </div>
+    <div class="graph">
+        <div class="graph-container" data-string="{{ availability }}" data-unit="%">
+        </div>
+    </div>
+</div>
+
+<div id="meanresptime" class="graph">
+    <div class="data">
+        <h2>Mean Response Time</h2>
+        <span class="number" title="Updated about 44 seconds ago">{{ resptime_mean }}ms</span>
+    </div>
+    <div class="graph">
+        <div class="graph-container" data-string="{{ resptime }}" data-unit="ms">
+        </div>
+    </div>
+</div>
+
+<div id="exceptpct" class="graph">
+    <div class="data">
+        <h2>Exception Percentage</h2>
+        <span class="number" title="Updated about 44 seconds ago">{{ "%.4f"|format(except_pct) }}%</span>
+    </div>
+    <div class="graph">
+        <div class="graph-container" data-string="{{ except_ }}" data-unit="%">
+        </div>
+    </div>
+</div>
+
+</div>
+
+</div>
+
+<script src="http://d3js.org/d3.v3.js"></script>
+<script>
+
+function graph(graphid, yDomain)
+{
+
+  var base = document.getElementById(graphid);
+  var graphContainer = base.getElementsByClassName('graph-container');
+  var dataString = graphContainer[0].getAttribute('data-string');
+  var unitString = graphContainer[0].getAttribute('data-unit');
+
+  var raw = JSON.parse(dataString);
+  data = []
+  for (var i = 0; i < raw.length; i++)
+  {
+    data.push({
+        'date': new Date(raw[i][0] * 1000),
+        'close': +raw[i][1]
+    });
+  }
+
+var margin = {top: 10, right: 10, bottom: 20, left: 30},
+    width = 377 - margin.left - margin.right,
+    height = 90 - margin.top - margin.bottom;
+
+var x = d3.time.scale()
+    .range([0, width]);
+
+var y = d3.scale.linear()
+    .range([height, 0])
+    ;
+
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .orient("bottom")
+    .ticks(d3.time.minutes, 30)
+    .tickFormat(function(d) { return (d3.time.format('%I:%M')(new Date(d))).replace(/^0/,''); })
+    ;
+
+var ticks = [
+    //d3.min (data, function(d){ return +d.close; }),
+    d3.mean(data, function(d){ return +d.close; }),
+    d3.max (data, function(d){ return +d.close; })
+];
+
+var yAxis = d3.svg.axis()
+    .scale(y)
+    .orient("left")
+    .tickValues(ticks)
+    .tickSize(-width)
+    .tickSubdivide(true)
+    .tickFormat(d3.format(',.0fms'))
+    ;
+
+var line = d3.svg.line()
+    .x(function(d) { return x(d.date); })
+    .y(function(d) { return y(d.close); });
+
+var svg = d3.select(graphContainer[0]).append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+  .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+  x.domain(d3.extent(data, function(d) { return d.date; }));
+  if (yDomain) {
+    y.domain(yDomain);
+  } else {
+    y.domain(d3.extent(data, function(d) { return d.close; }));
+  }
+
+  svg.append("g")
+      .attr("class", "x axis")
+      .attr("transform", "translate(0," + height + ")")
+      .call(xAxis);
+
+  svg.append("g")
+      .attr("class", "y axis")
+      .call(yAxis)
+    /*
+    .append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 6)
+      .attr("dy", ".71em")
+      .style("text-anchor", "end")
+      //.text("Price ($)");
+    */
+     ;
+
+  svg.append("path")
+      .datum(data)
+      .attr("class", "line")
+      .attr("d", line);
+}
+
+graph('meanresptime');
+graph('availability', [0,100]);
+graph('exceptpct', [0,100]);
+
+</script>
+
+</body>
+</html>
