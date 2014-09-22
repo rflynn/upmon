@@ -6,6 +6,6 @@ test: FORCE
 
 init: FORCE
 	$(SQLITE3) upmon.sqlite3 < schema.sql
-	$(PIP) install -r requirements.txt
+	sudo $(PIP) install -r requirements.txt
 
 FORCE:
