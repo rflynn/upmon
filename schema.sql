@@ -3,8 +3,6 @@ pragma page_size = 4096;
 
 begin;
 
-delete from sqlite_sequence;
-
 drop table if exists metadata;
 create table metadata (
     id                      integer primary key autoincrement,
