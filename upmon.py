@@ -30,7 +30,7 @@ assert exception_to_str(requests.exceptions.ConnectionError()) == 'ConnectionErr
 
 db = {}
 
-def get_dbconn(dbname='upmon.sqlite3'):
+def get_dbconn(dbname='/opt/upmon/upmon.sqlite3'):
     global db
     if dbname in db:
         return db[dbname]
@@ -158,8 +158,9 @@ if __name__ == '__main__':
         print 'usage: %s url' % (sys.argv[0],)
         sys.exit(1)
     check_url(urlparse(sys.argv[1]), requests.get)
-    c = get_dbconn().cursor()   
+    '''
+    c = get_dbconn().cursor()
     c.execute('select * from result order by id asc')
     for row in c:
         print dict(row)
-
+    '''
