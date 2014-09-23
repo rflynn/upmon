@@ -78,7 +78,7 @@ order by result.id asc
 
     availability = [[t, int(http_code >= 200 and http_code < 400) * 100]
                         for t, dur, http_code in rows]
-    availability_pct = sum(up for _, up in availability) / len(availability)
+    availability_pct = float(sum(up for _, up in availability)) / len(availability)
 
     resptime = [[t, dur]
                         for t, dur, http_code in rows]
@@ -88,7 +88,7 @@ order by result.id asc
 
     except_ = [[t, int(http_code is None) * 100]
                         for t, dur, http_code in rows]
-    except_pct = sum(x for _, x in except_) / len(except_)
+    except_pct = float(sum(x for _, x in except_)) / len(except_)
 
     current_date = datetime.now().strftime('%a, %b %d %Y %I:%M %p %Z')
 
