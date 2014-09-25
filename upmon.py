@@ -128,7 +128,8 @@ def check_url(url, method=requests.get):
     time_start = time.time() # FIXME: need unix timestamp in UTC
     try:
         r = do_req(url.geturl(),
-                   method=method)
+                   method=method,
+                   timeout=2)
         http_code = r.status_code
         content_type = r.headers.get('Content-Type')
         if content_type:
