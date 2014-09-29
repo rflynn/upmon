@@ -287,13 +287,21 @@ function graph(graphid, yDomain, tickConfig)
         .tickFormat(d3.format(',.0f'))
         ;
 
-    var yAxisTop = d3.svg.axis()
-        .scale(y)
-        .orient("left")
-        .tickValues([d3.max(data, close)])
-        .tickSize(-width)
-        .tickFormat(d3.format(',.0f'))
-        ;
+    var maxvalue = d3.max(data, close);
+    var meanvalue = d3.mean(data, close);
+
+    var yAxisTop;
+    if (maxvalue > meanvalue * 2.5)
+    {
+        yAxisTop = d3.svg.axis()
+                    .scale(y)
+                    .orient("left")
+                    .tickValues([maxvalue])
+                    .tickSize(-width)
+                    .tickFormat(d3.format(',.0f'))
+                    ;
+    }
+
 
     var line = d3.svg.line()
         .interpolate("basis") // line smoothing
@@ -336,12 +344,13 @@ function graph(graphid, yDomain, tickConfig)
         */
         ;
 
-        /*
-    svg.append("g")
-        .attr("class", "y axis top")
-        .call(yAxisTop)
-        ;
-        */
+    if (yAxisTop)
+    {
+        svg.append("g")
+            .attr("class", "y axis top")
+            .call(yAxisTop)
+            ;
+    }
 
     svg.append("path")
         .datum(data)
