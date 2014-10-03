@@ -129,7 +129,7 @@ def check_url(url, method=requests.get):
     try:
         r = do_req(url.geturl(),
                    method=method,
-                   timeout=2)
+                   timeout=(1,1))
         http_code = r.status_code
         content_type = r.headers.get('Content-Type')
         if content_type:
