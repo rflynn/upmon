@@ -32,14 +32,14 @@ def percentile(l, nth, key=lambda x: x):
     return sorted(l, key=key)[max(0,int(round((len(l) * (nth / 100.))))-1)]
 
 @app.route('/')
-def graph():
+@app.route('/<int:url_id>')
+def graph(url_id=1):
 
     now = datetime.now()
     six_hours_ago = now - timedelta(days=1)
 
     time_start = int(six_hours_ago.strftime('%s'))
     time_end = int(now.strftime('%s')) + 1
-    url_id = 1
 
     c = dbx.cursor()
     c.execute('''
