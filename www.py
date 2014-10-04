@@ -7,6 +7,7 @@ import sqlite3
 import string
 from datetime import date, datetime, timedelta
 from urlparse import urlparse
+import urllib
 
 # flask app core
 app = Flask(__name__, static_url_path='')
@@ -32,8 +33,11 @@ def percentile(l, nth, key=lambda x: x):
     return sorted(l, key=key)[max(0,int(round((len(l) * (nth / 100.))))-1)]
 
 @app.route('/')
-@app.route('/<int:url_id>')
-def graph(url_id=1):
+def root():
+    return graph(request.url) # graph self
+
+@app.route('/u/<path:url_str>')
+def graph(url_str):
 
     now = datetime.now()
     six_hours_ago = now - timedelta(days=1)
@@ -41,17 +45,21 @@ def graph(url_id=1):
     time_start = int(six_hours_ago.strftime('%s'))
     time_end = int(now.strftime('%s')) + 1
 
+    url_str = urllib.unquote(url_str).decode('utf8')
+    u = urlparse(url_str)
+
     c = dbx.cursor()
-    c.execute('''
-select
-    scheme || '://' || netloc || path || '?' || query as urlstr
-from url
-where id=?
-''',
-    (url_id,))
+
+    c.execute('select id from url where scheme=? and netloc=? and path=? and query=?',
+        (u.scheme, u.netloc, u.path, u.query,))
     row = c.fetchone()
     print row
-    url = urlparse(row['urlstr']).geturl() # normalize
+    if not row:
+        return # TODO: render error
+
+    url_id = row[0]
+    url = u.geturl() # normalize
+
     c.execute('''
 select
     -- reqloc_id,
