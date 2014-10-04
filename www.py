@@ -29,7 +29,7 @@ def percentile(l, nth, key=lambda x: x):
     if not l:
         return None
     assert nth >= 0 and nth <= 100
-    return sorted(l, key=key)[int(round((len(l) * (nth / 100.))))]
+    return sorted(l, key=key)[max(0,int(round((len(l) * (nth / 100.))))-1)]
 
 @app.route('/')
 def graph():
