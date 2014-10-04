@@ -88,17 +88,17 @@ def graph(url_enc):
 
     availability = [[t, int(http_code >= 200 and http_code < 400) * 100]
                         for t, dur, http_code in rows]
-    availability_pct = float(sum(up for _, up in availability)) / len(availability)
+    availability_pct = float(sum(up for _, up in availability)) / max(1, len(availability))
 
     resptime = [[t, dur]
                         for t, dur, http_code in rows]
-    resptime_mean = float(sum(dur for _, dur in resptime)) / len(resptime)
+    resptime_mean = float(sum(dur for _, dur in resptime)) / max(1, len(resptime))
 
     resptime_p98 = percentile(resptime, 98, key=lambda x: x[1])[1]
 
     except_ = [[t, int(http_code is None) * 100]
                         for t, dur, http_code in rows]
-    except_pct = float(sum(x for _, x in except_)) / len(except_)
+    except_pct = float(sum(x for _, x in except_)) / max(1, len(except_))
 
     current_date = datetime.now().strftime('%a, %b %d %Y %I:%M %p %Z')
 
