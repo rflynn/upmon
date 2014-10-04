@@ -161,7 +161,8 @@ if __name__ == '__main__':
     if len(sys.argv) < 2:
         print 'usage: %s url' % (sys.argv[0],)
         sys.exit(1)
-    check_url(urlparse(sys.argv[1]), requests.get)
+    for url in sys.argv[1:]:
+        check_url(urlparse(url), requests.get)
     '''
     c = get_dbconn().cursor()
     c.execute('select * from result order by id asc')
