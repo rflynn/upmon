@@ -61,14 +61,13 @@ select
     http_code
 from result
 join url on url.id = result.url_id
-left join [except] e on e.id = result.except_id
-where time_start between ? and ?
-and url_id=?
+where url_id=?
+and time_start between ? and ?
 order by result.id asc
 ''',
-        (time_start,
-         time_end,
-         url_id))
+        (url_id,
+         time_start,
+         time_end))
     rows = list(c)
     c.close()
     return rows
