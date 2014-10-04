@@ -29,48 +29,36 @@ def format_pct(pct):
 def percentile(l, nth, key=lambda x: x):
     if not l:
         return None
-    assert nth >= 0 and nth <= 100
-    return sorted(l, key=key)[max(0,int(round((len(l) * (nth / 100.))))-1)]
+    assert 0 <= nth <= 100
+    p_relative = len(l) * (nth / 100.)
+    p_round = int(round(p_relative))
+    p_index = max(0, p_round - 1)
+    return sorted(l, key=key)[p_index]
 
-@app.route('/')
-def root():
-    return graph(request.url) # graph self
-
-@app.route('/u/<path:url_str>')
-def graph(url_str):
-
-    now = datetime.now()
-    six_hours_ago = now - timedelta(days=1)
-
-    time_start = int(six_hours_ago.strftime('%s'))
-    time_end = int(now.strftime('%s')) + 1
-
-    url_str = urllib.unquote(url_str).decode('utf8')
+# given a possibly urlencoded url, decode it, normalize it, look it up in our db
+def get_url_id(url_enc):
+    url_str = urllib.unquote(url_enc).decode('utf8')
     u = urlparse(url_str)
 
     c = dbx.cursor()
-
     c.execute('select id from url where scheme=? and netloc=? and path=? and query=?',
         (u.scheme, u.netloc, u.path, u.query,))
     row = c.fetchone()
-    print row
-    if not row:
-        return # TODO: render error
+    c.close()
 
-    url_id = row[0]
+    url_id = row[0] if row else None
     url = u.geturl() # normalize
+    return url_id, u.geturl()
 
+def url_data(url_id, now, start):
+    time_start = int(start.strftime('%s'))
+    time_end = int(now.strftime('%s')) + 1
+    c = dbx.cursor()
     c.execute('''
 select
-    -- reqloc_id,
-    -- http_request_id,
     time_start,
     duration_msec,
     http_code
-    -- e.name,
-    -- content_type_id,
-    -- body_length,
-    -- body_sha1_id
 from result
 join url on url.id = result.url_id
 left join [except] e on e.id = result.except_id
@@ -83,6 +71,21 @@ order by result.id asc
          url_id))
     rows = list(c)
     c.close()
+    return rows
+
+@app.route('/')
+def root():
+    return graph(request.url) # graph self
+
+@app.route('/u/<path:url_enc>')
+def graph(url_enc):
+
+    url_id, url = get_url_id(url_enc)
+    if url_id is None:
+        return # TODO: render error message
+
+    now = datetime.now()
+    rows = url_data(url_id, now, now - timedelta(days=1))
 
     availability = [[t, int(http_code >= 200 and http_code < 400) * 100]
                         for t, dur, http_code in rows]
