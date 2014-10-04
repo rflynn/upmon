@@ -54,9 +54,10 @@ def save_url_results(reqloc,
 
     c.execute('begin')
 
-    c.execute(
+    try:
+        c.execute(
 '''
-insert or ignore into url (
+insert into url (
     scheme, netloc, path,
     query, fragment, username,
     password, hostname, port
@@ -69,6 +70,8 @@ insert or ignore into url (
         (url.scheme, url.netloc, url.path,
          url.query, url.fragment, url.username,
          url.password, url.hostname, url.port))
+    except:
+        pass # ignore errors
 
     c.execute('''insert or ignore into reqloc       (name) values (?);''', (reqloc,))
     c.execute('''insert or ignore into [except]     (name) values (?);''', (ex,))
