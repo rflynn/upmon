@@ -193,6 +193,10 @@ div.data {
 <script src="//cdnjs.cloudflare.com/ajax/libs/d3/3.4.11/d3.min.js"></script>
 <script>
 
+var None = null;
+var day = {{ day }};
+var week = {{ week }};
+
 function percentile(data, accessor, nth_percentiles)
 {
     nth_percentiles = nth_percentiles || [5, 95];

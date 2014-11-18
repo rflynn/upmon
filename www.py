@@ -6,6 +6,7 @@ from flask import Flask, render_template, request, redirect, url_for
 import sqlite3
 import string
 from datetime import date, datetime, timedelta
+from dateutil.relativedelta import relativedelta
 from urlparse import urlparse
 import urllib
 
@@ -72,6 +73,31 @@ order by result.id asc
     c.close()
     return rows
 
+def url_data_aggregate(url_id, now, start, period_sec):
+    time_start = int(start.strftime('%s'))
+    time_end = int(now.strftime('%s')) + 1
+    #print (url_id, time_start, time_end, period_sec)
+    c = dbx.cursor()
+    c.execute('''
+select
+    min(time_start),
+    cast((avg(duration_msec)) as int),
+    max(http_code)
+from result
+join url on url.id = result.url_id
+where url_id=?
+and time_start between ? and ?
+group by time_start - (time_start % ?)
+order by result.id asc
+''',
+        (url_id,
+         time_start,
+         time_end,
+         period_sec * 60))
+    rows = [list(row) for row in c]
+    c.close()
+    return rows
+
 @app.route('/')
 def root():
     return graph(request.url) # graph self
@@ -84,20 +110,23 @@ def graph(url_enc):
         return # TODO: render error message
 
     now = datetime.now()
-    rows = url_data(url_id, now, now - timedelta(days=1))
+    day = url_data(url_id, now, now - timedelta(days=1))
+    week = url_data_aggregate(url_id, now, now - relativedelta(weeks=1), 60) # every hour for a week
+    month = url_data_aggregate(url_id, now, now - relativedelta(months=6), 60*4) # every 4 hours for a month
 
     availability = [[t, int(http_code >= 200 and http_code < 400) * 100]
-                        for t, dur, http_code in rows]
+                        for t, dur, http_code in day]
     availability_pct = float(sum(up for _, up in availability)) / max(1, len(availability))
 
     resptime = [[t, dur]
-                        for t, dur, http_code in rows]
+                        for t, dur, http_code in day]
     resptime_mean = float(sum(dur for _, dur in resptime)) / max(1, len(resptime))
 
-    resptime_p98 = percentile(resptime, 98, key=lambda x: x[1])[1]
+    p = percentile(resptime, 98, key=lambda x: x[1])
+    resptime_p98 = p[1] if p else 0.0
 
     except_ = [[t, int(http_code is None) * 100]
-                        for t, dur, http_code in rows]
+                        for t, dur, http_code in day]
     except_pct = float(sum(x for _, x in except_)) / max(1, len(except_))
 
     current_date = datetime.now().strftime('%a, %b %d %Y %I:%M %p %Z')
@@ -107,6 +136,8 @@ def graph(url_enc):
                            current_date=current_date,
                            availability_pct=format_pct(availability_pct),
                            availability=availability,
+                           day=[list(d) for d in day],
+                           week=week,
                            resptime_mean=resptime_mean,
                            resptime=resptime,
                            resptime_p98=resptime_p98,
